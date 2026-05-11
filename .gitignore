@@ -1,0 +1,16 @@
+# Directories to ignore
+**/node_modules/
+**/vendor/
+**/storage/framework/
+**/storage/logs/
+**/bootstrap/cache/
+
+# Files to ignore
+**/.env
+**/.DS_Store
+**/storage/*.key
+Thumbs.db
+
+# Large binaries/Models
+**/public/models/*.shard*
+**/public/models/*.json

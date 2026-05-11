@@ -1,0 +1,35 @@
+.env
+.env.example
+.env.backup
+.env.production
+.env.local
+
+# Sensitive files
+sshkey
+*.key
+auth.json
+
+# Reports and temporary docs
+*.md
+!README.md
+public/models/
+
+# Logs and caches
+npm-debug.log
+yarn-error.log
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/pail
+/vendor
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed

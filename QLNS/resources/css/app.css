@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    /* Tự động biến mọi bảng trong Main Content thành Responsive */
+    main table {
+        @apply min-w-full;
+    }
+    
+    main .bg-white.overflow-hidden.shadow-sm {
+        @apply overflow-x-auto;
+    }
+
+    /* Tối ưu cho bảng (Table) trên điện thoại */
+    .table-responsive {
+        @apply block w-full overflow-x-auto scrolling-touch;
+    }
+
+    /* Tinh chỉnh lề cho mobile */
+    @media (max-width: 640px) {
+        .container-fluid {
+            @apply px-2;
+        }
+        
+        /* Ẩn các cột không quan trọng trên điện thoại nhỏ */
+        .hide-on-mobile {
+            display: none !important;
+        }
+
+        /* Chỉnh font chữ tiêu đề nhỏ lại trên mobile */
+        h1 { @apply text-xl !important; }
+        h2 { @apply text-lg !important; }
+    }
+
+    /* Tinh chỉnh cho máy tính bảng */
+    @media (min-width: 641px) and (max-width: 1024px) {
+        .container-fluid {
+            @apply px-4;
+        }
+    }
+}
