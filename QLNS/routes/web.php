@@ -168,9 +168,9 @@ Route::middleware(['auth', 'employee']) // Yêu cầu đăng nhập và là empl
     ->group(function () {
 
         // Chấm công của nhân viên
-        Route::get('attendance', [EmployeeAttendanceController::class, 'create'])->name('attendance.create'); // Trang hiển thị nút check-in/out
-        Route::post('attendance/check-in', [EmployeeAttendanceController::class, 'storeCheckIn'])->name('attendance.checkin');
-        Route::post('attendance/check-out', [EmployeeAttendanceController::class, 'storeCheckOut'])->name('attendance.checkout');
+        // Chấm công thủ công bằng nút bấm đã bỏ: nhân viên chấm công qua Kiosk Face ID.
+        // /employee/attendance chuyển về trang lịch sử để link cũ không bị lỗi.
+        Route::redirect('attendance', '/employee/attendance/history')->name('attendance.create');
         Route::get('attendance/history', [EmployeeAttendanceController::class, 'history'])->name('attendance.history'); // Trang xem lịch sử chấm công
     
         // Thông tin cá nhân của nhân viên

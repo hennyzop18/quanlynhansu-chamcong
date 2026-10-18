@@ -28,6 +28,15 @@ A comprehensive, production-ready HR and Attendance Management System built with
 - **AI/ML:** Face-api.js (TensorFlow.js)
 - **Deployment:** Docker on Hugging Face Spaces (Nginx & PHP-FPM)
 
+## 🪟 Run on Windows 10/11 (one click)
+
+1. `git clone -b windows-support https://github.com/hennyzop18/quanlynhansu-chamcong.git`
+2. Double-click **`setup-windows.bat`** (once). It installs XAMPP 8.2 + Node LTS via winget if missing, enables PHP extensions, creates the `qlns` database, configures `QLNS/.env`, downloads face-api models, runs migrate + seed, builds assets and installs the Kiosk app.
+3. Double-click **`start-windows.bat`** every time: starts MySQL, `php artisan serve` on http://127.0.0.1:8000, opens the browser and the Kiosk app.
+
+Sample login: `admin@example.com` / `password`.
+For the Kiosk on Windows 11 24H2+, turn on *Settings → Privacy & security → Location* (and "Let desktop apps access your location"), otherwise Windows hides the Wi-Fi name. Add your Wi-Fi name and IP to `QLNS/config/hr.php`.
+
 ## ⚙️ Installation & Setup
 
 ### 1. Clone & Environment
@@ -62,22 +71,22 @@ Check User Role
 └── Employee → /employee/attendance/history (Personal Attendance History)
 ```
 
-### Flow 2: AI Attendance via Face ID
+### Flow 2: AI Attendance via Face ID (Kiosk)
 ```text
-[Camera/Browser]                [Face-api.js]                   [Laravel Backend]
-      |                               |                                 |
-      | 1. Request Video Stream       |                                 |
-      |------------------------------>|                                 |
-      | 2. Detect & Extract Landmarks |                                 |
-      |<------------------------------|                                 |
-      | 3. Post Descriptors (JSON)    |                                 |
-      |---------------------------------------------------------------->|
-      |                               |                                 | 4. Euclidean Distance Match
-      |                               |                                 |------------------------┐
-      |                               |                                 |                        |
-      |                               | 5. Return Employee Identified   | <----------------------┘
-      |<----------------------------------------------------------------|
-      | 6. Log Attendance Entry       |                                 |
+[Kiosk-Helper-App]           [Laravel Backend]                     [Kiosk page - browser]
+      | 1. Read Wi-Fi SSID          |                                       |
+      | 2. POST /api/kiosk/request-token {ssid}                             |
+      |---------------------------->| check office IP + SSID                |
+      |<----------------------------| 3. otp_token (valid KIOSK_TOKEN_TTL_MINUTES)
+      | 4. open /kiosk/attendance?token=...  ------------------------------->|
+      |                             |        5. face-api.js detects a face  |
+      |                             |           and computes a 128-d vector |
+      |                             |<--- 6. POST /api/kiosk/record-attendance {otp_token, descriptor}
+      |                             | 7. Euclidean distance vs. all registered faces
+      |                             |    (<= KIOSK_FACE_MATCH_THRESHOLD) -> employee
+      |                             | 8. first scan of the day = check-in, later = check-out
+      |                             |    (repeat scans within cooldown are ignored)
+      |                             |--- 9. {name, action, message} -------->|
 ```
 
 ### Flow 3: Payroll Generation & Distribution
