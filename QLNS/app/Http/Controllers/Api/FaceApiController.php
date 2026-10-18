@@ -127,7 +127,7 @@ class FaceApiController extends Controller
             ->whereDate('date', $today->toDateString())
             ->first();
 
-        if ($todaysAttendance) {
+        if ($todaysAttendance && $todaysAttendance->check_in_time) {
             // ĐÃ CÓ CHECK-IN -> các lần quét sau trong ngày luôn cập nhật CHECK-OUT
             $checkInTime  = $todaysAttendance->check_in_time;
             $breakHours   = 0;
@@ -178,14 +178,22 @@ class FaceApiController extends Controller
                 Log::warning("FaceID Check-in: Employee {$employee->id} has no schedule. Defaulted to 'present'.");
             }
 
-            Attendance::create([
-                'employee_id'      => $employee->id,
-                'date'             => $today->toDateString(),
+            $checkInData = [
                 'check_in_time'    => $now,
                 'status'           => $status,
                 'check_out_time'   => null,
                 'work_schedule_id' => $workSchedule?->id, // Ca làm việc tại thời điểm chấm công
-            ]);
+            ];
+
+            if ($todaysAttendance) {
+                // Đã có bản ghi nhưng chưa có giờ vào (vd: bản ghi nghỉ phép/vắng do hệ thống tạo)
+                $todaysAttendance->update($checkInData);
+            } else {
+                Attendance::create($checkInData + [
+                    'employee_id' => $employee->id,
+                    'date'        => $today->toDateString(),
+                ]);
+            }
             $action = 'Check-in';
         }
 
