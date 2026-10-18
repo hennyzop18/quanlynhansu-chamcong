@@ -289,7 +289,8 @@ function getPaddedBox(box) {
         const distToLeftJaw = Math.hypot(nose.x - jawLeft.x, nose.y - jawLeft.y);
         const distToRightJaw = Math.hypot(nose.x - jawRight.x, nose.y - jawRight.y);
         const ratio = distToLeftJaw / distToRightJaw;
-        return { yaw: (1 - ratio) * 100 };
+        // Đảo chiều để khi nhìn gương: quay đầu sang TRÁI thì yaw > 0, quay sang PHẢI thì yaw < 0
+        return { yaw: (ratio - 1) * 100 };
     }
 
 

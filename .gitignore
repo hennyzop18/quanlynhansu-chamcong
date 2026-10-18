@@ -14,3 +14,8 @@ Thumbs.db
 # Large binaries/Models
 **/public/models/*.shard*
 **/public/models/*.json
+
+# Windows setup
+.tools/
+QLNS/.env.mac.bak
+QLNS/package-lock.mac.json

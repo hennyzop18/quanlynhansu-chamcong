@@ -88,6 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`Kết quả so khớp: Nhãn = ${bestMatch.label}, Khoảng cách = ${bestMatch.distance}`);
                 
                 const box = resizedDetections.detection.box;
+                const mirroredBox = new faceapi.Rect(
+                    displaySize.width - box.x - box.width,
+                    box.y,
+                    box.width,
+                    box.height
+                );
                 let label = bestMatch.toString();
                 if (bestMatch.label !== 'unknown') {
                     const personData = faceMatcher.labeledDescriptors.find(d => d.label === bestMatch.label);
@@ -95,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         label = `${personData._label} (${bestMatch.distance.toFixed(2)})`;
                     }
                 }
-                const drawBox = new faceapi.draw.DrawBox(box, { label: label });
+                const drawBox = new faceapi.draw.DrawBox(mirroredBox, { label: label });
                 drawBox.draw(canvas);
 
                 if (bestMatch.label !== 'unknown' && !isProcessing) {

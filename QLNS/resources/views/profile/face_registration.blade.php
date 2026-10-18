@@ -17,9 +17,9 @@
                         {{-- Vùng hiển thị avatar --}}
                         <img id="avatar-preview" src="{{ asset('image/user.png') }}" alt="Avatar Preview" class="w-full h-full object-cover z-10 transition-opacity duration-300">
                         
-                        {{-- Video sẽ nằm đè lên khi bắt đầu --}}
-                        <video id="video" class="absolute top-0 left-0 w-full h-full object-cover z-20" autoplay muted playsinline style="display: none;"></video>
-                        <canvas id="canvas" class="absolute top-0 left-0 w-full h-full z-30"></canvas>
+                        {{-- Video sẽ nằm đè lên khi bắt đầu (Lật gương transform: scaleX(-1)) --}}
+                        <video id="video" class="absolute top-0 left-0 w-full h-full object-cover z-20" autoplay muted playsinline style="display: none; transform: scaleX(-1); -webkit-transform: scaleX(-1);"></video>
+                        <canvas id="canvas" class="absolute top-0 left-0 w-full h-full z-30" style="transform: scaleX(-1); -webkit-transform: scaleX(-1);"></canvas>
                     </div>
                     
                     <div id="status-container" class="mt-4 h-16 text-center">
