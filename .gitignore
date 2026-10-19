@@ -1,9 +1,8 @@
 # Directories to ignore
 **/node_modules/
 **/vendor/
-**/storage/framework/
-**/storage/logs/
-**/bootstrap/cache/
+# storage/framework, storage/logs, bootstrap/cache: Laravel can cac thu muc nay ton tai
+# (thieu la composer install loi package:discover). Noi dung da duoc bo qua bang .gitignore ben trong.
 
 # Files to ignore
 **/.env
