@@ -251,6 +251,10 @@ try {
     # ---------------------------------------------------------------
     Write-Step '8/9 Cài thư viện QLNS và khởi tạo database'
     Set-Location $App
+    # Laravel cần các thư mục này, thiếu là composer install lỗi ở bước package:discover
+    foreach ($d in 'bootstrap\cache', 'storage\framework\cache\data', 'storage\framework\sessions', 'storage\framework\views', 'storage\logs') {
+        New-Item -ItemType Directory -Force (Join-Path $App $d) | Out-Null
+    }
     Invoke-Composer install --no-interaction --prefer-dist
     Assert-Exit 'composer install'
 
