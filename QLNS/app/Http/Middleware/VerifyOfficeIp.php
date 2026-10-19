@@ -23,6 +23,7 @@ class VerifyOfficeIp
 
         if (app()->isLocal()) {
             $allowedIps[] = '127.0.0.1';
+            $allowedIps[] = '::1'; // localhost IPv6 (Windows hay dùng)
         }
 
         Log::info('Verifying Office IP', [

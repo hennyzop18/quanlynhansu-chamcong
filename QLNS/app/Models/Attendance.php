@@ -17,6 +17,8 @@ class Attendance extends Model
         'date',
         'status',
         'notes',
+        'work_schedule_id', // ca làm việc tại thời điểm chấm công
+        'admin_id',         // admin đã sửa bản ghi (audit)
     ];
 
     protected $casts = [

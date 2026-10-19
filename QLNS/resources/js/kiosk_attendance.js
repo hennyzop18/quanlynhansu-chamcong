@@ -1,13 +1,22 @@
 
 import * as faceapi from 'face-api.js';
 
+/**
+ * Trang Kiosk chấm công Face ID.
+ *
+ * Luồng: đọc token phiên từ URL -> tải model AI -> bật camera -> cứ vài trăm ms phát hiện
+ * khuôn mặt, tính vector 128 chiều và gửi lên server. Server tự so khớp với khuôn mặt đã
+ * đăng ký và trả về tên nhân viên + kết quả check-in/check-out.
+ */
 document.addEventListener('DOMContentLoaded', () => {
     // --- CẤU HÌNH ---
     const MODEL_URL = '/models';
     const API_BASE_URL = '/api/kiosk';
-    const MATCH_THRESHOLD = 0.5;
     const SSD_MOBILENETV1_OPTIONS = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
-    const RECOGNITION_COOLDOWN = 5000;
+    const DETECT_INTERVAL_MS = 400;   // chu kỳ phát hiện khuôn mặt
+    const MIN_SEND_SCORE = 0.8;       // chỉ gửi khi khuôn mặt đủ rõ
+    const SEND_INTERVAL_MS = 1500;    // không gửi lên server dày hơn mức này
+    const RESULT_DISPLAY_MS = 4000;   // thời gian giữ thông báo kết quả trên màn hình
 
     // --- DOM Elements ---
     const video = document.getElementById('video');
@@ -15,100 +24,124 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusEl = document.getElementById('status');
 
     if (!video || !videoContainer || !statusEl) {
-        console.error("Lỗi: Không tìm thấy các thành phần HTML cần thiết.");
-        if (statusEl) logStatus('Lỗi giao diện.', true);
+        console.error('Lỗi: Không tìm thấy các thành phần HTML cần thiết.');
         return;
     }
 
     // --- State ---
-    let faceMatcher = null;
     let otpToken = null;
-    let isProcessing = false;
+    let isSending = false;
+    let sessionExpired = false;
+    let lastSentAt = 0;
+    let pauseUntil = 0;               // tạm dừng gửi sau khi đã chấm công thành công
+    let lastLabel = '';               // nhãn vẽ trên khung mặt (tên người vừa nhận ra)
+    let loopTimer = null;
 
-    /**
-     * Hàm chính, điểm bắt đầu của toàn bộ logic.
-     */
     async function main() {
         logStatus('Đang khởi tạo...');
         otpToken = getTokenFromUrl();
         if (!otpToken) {
-            logStatus('Lỗi: Phiên không hợp lệ. Vui lòng khởi động lại từ ứng dụng Desktop.', true);
+            logStatus('Lỗi: Phiên không hợp lệ. Vui lòng khởi động lại từ ứng dụng Kiosk.', true);
             return;
         }
 
         try {
             logStatus('Đang tải model AI...');
             await loadModels();
-
-            logStatus('Đang tải dữ liệu nhân viên...');
-            const labeledFaceDescriptors = await getLabeledFaceDescriptors();
-            if (!labeledFaceDescriptors || labeledFaceDescriptors.length === 0) {
-                logStatus('Lỗi: Không có dữ liệu khuôn mặt nào trong hệ thống.', true);
-                return;
-            }
-            faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, MATCH_THRESHOLD);
-
             await startWebcam();
-            // Lắng nghe sự kiện này để đảm bảo video đã có kích thước trước khi chạy nhận diện.
-            video.addEventListener('loadedmetadata', setupCanvasAndRunRecognition);
-
+            // Chờ video có kích thước thật rồi mới dựng canvas và chạy nhận diện
+            if (video.readyState >= 1) {
+                setupCanvasAndRunRecognition();
+            } else {
+                video.addEventListener('loadedmetadata', setupCanvasAndRunRecognition, { once: true });
+            }
         } catch (error) {
-            console.error("Initialization Error:", error);
+            console.error('Initialization Error:', error);
             logStatus(`Lỗi khởi tạo: ${error.message}`, true);
         }
     }
 
-    /**
-     * Hàm này chỉ chạy sau khi video đã có kích thước (sự kiện 'loadedmetadata').
-     * Nó chịu trách nhiệm thiết lập canvas và bắt đầu vòng lặp nhận diện.
-     */
     function setupCanvasAndRunRecognition() {
         logStatus('Hệ thống đã sẵn sàng. Vui lòng nhìn vào camera.');
 
         const canvas = faceapi.createCanvasFromMedia(video);
         videoContainer.append(canvas);
-        
-        // Lấy kích thước thực tế của video, sẽ không còn là 0.
         const displaySize = { width: video.videoWidth, height: video.videoHeight };
         faceapi.matchDimensions(canvas, displaySize);
+        const ctx = canvas.getContext('2d');
 
-        setInterval(async () => {
-            if (isProcessing) return;
+        loopTimer = setInterval(async () => {
+            if (sessionExpired) return;
 
-            const detections = await faceapi.detectAllFaces(video, SSD_MOBILENETV1_OPTIONS)
+            const detection = await faceapi
+                .detectSingleFace(video, SSD_MOBILENETV1_OPTIONS)
                 .withFaceLandmarks()
-                .withFaceDescriptors();
+                .withFaceDescriptor();
 
-            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-
-            for (const detection of detections) {
-                const resizedDetections = faceapi.resizeResults(detection, displaySize);
-                const bestMatch = faceMatcher.findBestMatch(resizedDetections.descriptor);
-                
-                console.log(`Kết quả so khớp: Nhãn = ${bestMatch.label}, Khoảng cách = ${bestMatch.distance}`);
-                
-                const box = resizedDetections.detection.box;
-                let label = bestMatch.toString();
-                if (bestMatch.label !== 'unknown') {
-                    const personData = faceMatcher.labeledDescriptors.find(d => d.label === bestMatch.label);
-                    if (personData) {
-                        label = `${personData._label} (${bestMatch.distance.toFixed(2)})`;
-                    }
-                }
-                const drawBox = new faceapi.draw.DrawBox(box, { label: label });
-                drawBox.draw(canvas);
-
-                if (bestMatch.label !== 'unknown' && !isProcessing) {
-                    isProcessing = true;
-                    const userId = bestMatch.label;
-                    await recordAttendance(userId, otpToken);
-                    setTimeout(() => {
-                        isProcessing = false;
-                        logStatus('Hệ thống đã sẵn sàng. Vui lòng nhìn vào camera.');
-                    }, RECOGNITION_COOLDOWN);
-                }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!detection) {
+                if (Date.now() > pauseUntil) lastLabel = '';
+                return;
             }
-        }, 500);
+
+            // Vẽ khung (video đang lật gương bằng CSS nên lật toạ độ X của khung theo)
+            const resized = faceapi.resizeResults(detection, displaySize);
+            const box = resized.detection.box;
+            const mirroredBox = new faceapi.Rect(displaySize.width - box.x - box.width, box.y, box.width, box.height);
+            new faceapi.draw.DrawBox(mirroredBox, { label: lastLabel || undefined }).draw(canvas);
+
+            const now = Date.now();
+            const canSend = !isSending
+                && now >= pauseUntil
+                && now - lastSentAt >= SEND_INTERVAL_MS
+                && detection.detection.score >= MIN_SEND_SCORE;
+            if (canSend) {
+                lastSentAt = now;
+                recordAttendance(Array.from(detection.descriptor));
+            }
+        }, DETECT_INTERVAL_MS);
+    }
+
+    async function recordAttendance(descriptor) {
+        isSending = true;
+        try {
+            const response = await fetch(`${API_BASE_URL}/record-attendance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ otp_token: otpToken, descriptor }),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                // 200: đã chấm công, hoặc người này vừa chấm xong (duplicate)
+                lastLabel = result.name || '';
+                logStatus(result.message, false);
+                pauseUntil = Date.now() + RESULT_DISPLAY_MS;
+                setTimeout(() => {
+                    if (!sessionExpired && Date.now() >= pauseUntil) {
+                        lastLabel = '';
+                        logStatus('Hệ thống đã sẵn sàng. Vui lòng nhìn vào camera.');
+                    }
+                }, RESULT_DISPLAY_MS);
+            } else if (response.status === 404) {
+                lastLabel = 'Không nhận ra';
+                logStatus(result.message || 'Không nhận ra khuôn mặt.', true);
+            } else if (response.status === 403) {
+                sessionExpired = true;
+                clearInterval(loopTimer);
+                logStatus(result.message || 'Phiên chấm công đã hết hạn. Vui lòng mở lại từ ứng dụng Kiosk.', true);
+            } else if (response.status === 429) {
+                pauseUntil = Date.now() + 5000;
+                logStatus('Quá nhiều yêu cầu, vui lòng đợi vài giây...', true);
+            } else {
+                logStatus(`Lỗi: ${result.message || 'Không thể chấm công.'}`, true);
+            }
+        } catch (error) {
+            console.error('Error recording attendance:', error);
+            logStatus('Lỗi kết nối đến server chấm công.', true);
+        } finally {
+            isSending = false;
+        }
     }
 
     // --- Các hàm phụ ---
@@ -130,44 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startWebcam() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('Trình duyệt không cho dùng camera. Hãy mở trang qua http://127.0.0.1 hoặc https.');
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
-    }
-
-    async function getLabeledFaceDescriptors() {
-        try {
-            const response = await fetch(`${API_BASE_URL}/face-descriptors`);
-            if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
-            const data = await response.json();
-            return data.map(personData => {
-                const descriptors = personData.descriptors.map(d => new Float32Array(d));
-                return new faceapi.LabeledFaceDescriptors(personData.label, descriptors);
-            });
-        } catch (error) {
-            console.error("Failed to fetch descriptors:", error);
-            logStatus(`Lỗi khi tải dữ liệu: ${error.message}`, true);
-            return null;
-        }
-    }
-
-    async function recordAttendance(userId, otpToken) {
-        logStatus('Đã nhận diện. Đang gửi dữ liệu chấm công...');
-        try {
-            const response = await fetch(`${API_BASE_URL}/record-attendance`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ user_id: userId, otp_token: otpToken }),
-            });
-            const result = await response.json();
-            if (response.ok) {
-                logStatus(result.message);
-            } else {
-                logStatus(`Lỗi: ${result.message || 'Không thể chấm công.'}`, true);
-            }
-        } catch (error) {
-            console.error("Error recording attendance:", error);
-            logStatus('Lỗi kết nối đến server chấm công.', true);
-        }
     }
 
     // --- KHỞI CHẠY ---

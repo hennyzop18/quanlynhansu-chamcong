@@ -29,7 +29,17 @@
             box-shadow: 0 15px 30px rgba(0,0,0,0.4);
             background-color: #000;
         }
-        video, canvas {
+        video {
+            position: absolute; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            -webkit-transform: scaleX(-1);
+        }
+        canvas {
             position: absolute; 
             top: 0;
             left: 0;

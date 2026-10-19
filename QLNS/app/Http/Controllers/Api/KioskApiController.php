@@ -53,14 +53,16 @@ class KioskApiController extends Controller
         $token = Str::random(40);
         $cacheKey = 'kiosk_otp_' . $token;
         
-        // Lưu token vào cache, hiệu lực 120 giây (đủ thời gian tải model AI và nhận diện)
-        Cache::put($cacheKey, true, now()->addSeconds(120));
+        // Lưu token vào cache. Token dùng lại được cho nhiều nhân viên tới khi hết hạn,
+        // để một phiên Kiosk phục vụ cả ca (cấu hình KIOSK_TOKEN_TTL_MINUTES, mặc định 120 phút).
+        $ttlMinutes = (int) config('hr.kiosk.token_ttl_minutes', 120);
+        Cache::put($cacheKey, true, now()->addMinutes($ttlMinutes));
 
         Log::info('Kiosk token granted successfully.', [
             'ssid' => $receivedSsid,
             'request_ip' => $request->ip(),
         ]);
 
-        return response()->json(['otp_token' => $token]);
+        return response()->json(['otp_token' => $token, 'expires_in_minutes' => $ttlMinutes]);
     }
 }

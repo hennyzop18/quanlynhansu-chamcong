@@ -28,14 +28,13 @@ npm install
 
 ### Bước 2: Cấu hình URL trong `main.js`
 
-Mở file `main.js`, chỉnh 2 hằng số ở đầu file:
+Mặc định app gọi server `http://127.0.0.1:8000`. Muốn trỏ tới server khác, đặt biến môi trường `QLNS_SERVER_URL` trước khi chạy:
 
-```javascript
-// URL API backend để lấy OTP token
-const LARAVEL_API_URL = 'http://localhost:8000/api/kiosk/request-token';
-
-// URL trang Kiosk chấm công
-const KIOSK_WEB_URL = 'http://localhost:8000/kiosk/attendance';
+```bash
+# Windows (cmd)
+set QLNS_SERVER_URL=https://ten-space.hf.space && npm start
+# macOS / Linux
+QLNS_SERVER_URL=https://ten-space.hf.space npm start
 ```
 
 ### Bước 3: Cấu hình WiFi được phép (ở Backend)
@@ -90,11 +89,14 @@ Cửa sổ Electron mở ra → Nhấn nút **"Bắt Đầu Chấm Công"** → 
         │                               │  6. Load face-api.js      │
         │                               │  7. Đọc token từ URL      │
         │                               │  8. Xóa token khỏi URL    │
-        │                               │     (window load event)   │
-        │                               │  9. Bật camera nhận diện  │
+        │                               │  9. Bật camera, tính      │
+        │                               │     vector khuôn mặt      │
         │                               │                           │
         │                               │  10. POST /api/kiosk/     │
         │                               │      record-attendance    │
+        │                               │      {token, descriptor}  │
+        │   Server so khớp vector với   │                           │
+        │   khuôn mặt đã đăng ký        │                           │
         │                               │  ◄── "Check-in thành công"│
 ```
 
@@ -114,7 +116,8 @@ Error: Lỗi khi lấy thông tin Wi-Fi: spawn /System/Library/.../airport ENOEN
 
 App tự động phân nhánh theo OS:
 - **macOS** → dùng `system_profiler SPAirPortDataType` (ổn định, không dùng `airport`)
-- **Windows / Linux** → dùng `node-wifi`
+- **Windows** → tự gọi `netsh wlan show interfaces` và tìm dòng `SSID` (`wifi-windows.js`). Windows 11 24H2+ cần bật quyền **Location**, app sẽ tự mở trang cài đặt nếu bị chặn.
+- **Linux** → dùng `node-wifi`
 
 Nếu vẫn gặp lỗi, kiểm tra hàm `getSsid()` trong `main.js` có điều kiện `if (platform === 'darwin')`.
 
@@ -152,11 +155,7 @@ Lỗi: Phiên không hợp lệ. Vui lòng khởi động lại từ ứng dụn
 
 Script `replaceState` hiện được gọi trong `window.addEventListener('load', ...)` ở cuối `<body>` — JS đọc token trước, xóa URL sau.
 
-**Nếu vẫn gặp:** Token có thể đã hết hạn (mặc định 120 giây). Kiểm tra `KioskApiController.php`:
-```php
-// Tăng thời gian nếu cần (đơn vị: giây)
-Cache::put($cacheKey, true, now()->addSeconds(120));
-```
+**Nếu vẫn gặp:** Token có thể đã hết hạn (mặc định 120 phút, một token dùng được cho nhiều nhân viên). Đổi bằng biến `KIOSK_TOKEN_TTL_MINUTES` trong `QLNS/.env`.
 
 ---
 

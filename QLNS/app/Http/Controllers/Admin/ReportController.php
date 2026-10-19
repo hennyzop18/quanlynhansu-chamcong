@@ -59,10 +59,10 @@ class ReportController extends Controller
             ->select(
                 'employee_id',
                 DB::raw('COUNT(*) as total_records'), // Tổng số record chấm công
-                DB::raw('SUM(CASE WHEN status = "present" OR status = "late" THEN 1 ELSE 0 END) as present_days'), // Số ngày có mặt (đi làm + đi trễ)
-                DB::raw('SUM(CASE WHEN status = "late" THEN 1 ELSE 0 END) as late_days'), // Số ngày đi trễ
-                DB::raw('SUM(CASE WHEN status = "absent" THEN 1 ELSE 0 END) as absent_days'), // Số ngày vắng
-                DB::raw('SUM(CASE WHEN status = "leave" THEN 1 ELSE 0 END) as leave_days') // Số ngày nghỉ phép (nếu có)
+                DB::raw("SUM(CASE WHEN status = 'present' OR status = 'late' THEN 1 ELSE 0 END) as present_days"), // Số ngày có mặt (đi làm + đi trễ)
+                DB::raw("SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_days"), // Số ngày đi trễ
+                DB::raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_days"), // Số ngày vắng
+                DB::raw("SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) as leave_days") // Số ngày nghỉ phép (nếu có)
                 // TODO: Tính tổng giờ làm, giờ OT... nếu cần
             )
             ->groupBy('employee_id');

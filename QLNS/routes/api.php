@@ -17,9 +17,8 @@ Route::middleware('verify.office.ip')->prefix('kiosk')->group(function () {
     // API cho Desktop App gọi để lấy token OTP
     Route::post('/request-token', [KioskApiController::class, 'requestToken']);
 
-    // API cho trang Kiosk JS gọi để lấy dữ liệu các khuôn mặt
-    Route::get('/face-descriptors', [FaceApiController::class, 'getFaceDescriptors']);
-
-    // API cuối cùng để ghi nhận check-in/check-out
-    Route::post('/record-attendance', [FaceApiController::class, 'recordAttendance']);
+    // Trang Kiosk gửi vector khuôn mặt vừa quét, server tự nhận diện rồi ghi check-in/check-out.
+    // (Đã bỏ API /face-descriptors: trước đây nó trả vector khuôn mặt của mọi nhân viên về trình duyệt.)
+    Route::post('/record-attendance', [FaceApiController::class, 'recordAttendance'])
+        ->middleware('throttle:120,1');
 });
